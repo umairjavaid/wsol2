@@ -1,16 +1,13 @@
 """
 Copyright (c) 2020-present NAVER Corp.
-
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, including without limitation the rights to
 use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
 the Software, and to permit persons to whom the Software is furnished to do so,
 subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
 FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
@@ -25,6 +22,7 @@ import pickle
 import random
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim
 
 from config import get_configs
@@ -41,6 +39,32 @@ def set_random_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=0):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def get_attention(self, input, target):
+        prob = F.softmax(input, dim=-1)
+        prob = prob[range(target.shape[0]), target]
+        prob = 1 - prob
+        prob = prob ** self.gamma
+        return prob
+
+    def get_celoss(self, input, target):
+        ce_loss = F.log_softmax(input, dim=1)
+        ce_loss = -ce_loss[range(target.shape[0]), target]
+        return ce_loss
+
+    def forward(self, input, target):
+        attn = self.get_attention(input, target)
+        ce_loss = self.get_celoss(input, target)
+        loss = self.alpha * ce_loss * attn
+        return loss.mean()
+
+floss1 = FocalLoss(alpha=0.25, gamma=2)
 
 
 class PerformanceMeter(object):
@@ -180,11 +204,11 @@ class Trainer(object):
         output_dict = self.model(images, target)
         logits = output_dict['logits']
 
-        if self.args.wsol_method in ('acol', 'spg'):
+        if self.args.wsol_method in ('acol', 'spg','mymodel45'):
             loss = wsol.method.__dict__[self.args.wsol_method].get_loss(
                 output_dict, target, spg_thresholds=self.args.spg_thresholds)
         else:
-            loss = self.cross_entropy_loss(logits, target)
+            loss = floss1(logits, target)
 
         return logits, loss
 

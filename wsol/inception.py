@@ -12,6 +12,8 @@ from .method import AcolBase
 from .method import ADL
 from .method import normalize_tensor
 from .method import spg
+from .method import mymodel2
+from .method import MyModel2
 from .util import initialize_weights
 from .util import remove_layer
 

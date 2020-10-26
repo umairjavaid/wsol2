@@ -118,6 +118,11 @@ class Trainer(object):
             crop_size=self.args.crop_size,
             proxy_training_set=self.args.proxy_training_set,
             num_val_sample_per_class=self.args.num_val_sample_per_class)
+        if(self.args.loss == "crossentropyloss"):
+            self.loss = nn.CrossEntropyLoss().cuda()
+        if(self.args.loss == "focalloss"):
+            self.loss = floss1
+
 
     def _set_performance_meters(self):
         self._EVAL_METRICS += ['localization_IOU_{}'.format(threshold)
@@ -205,10 +210,15 @@ class Trainer(object):
         logits = output_dict['logits']
 
         if self.args.wsol_method in ('acol', 'spg','mymodel45'):
-            loss = wsol.method.__dict__[self.args.wsol_method].get_loss(
-                output_dict, target, spg_thresholds=self.args.spg_thresholds)
+            if(self.args.loss == "crossentropyloss"):
+                loss = wsol.method.__dict__[self.args.wsol_method].get_loss(
+                    output_dict, target, spg_thresholds=self.args.spg_thresholds)
+            if(self.args.loss == "focalloss"):
+                loss = wsol.method.__dict__[self.args.wsol_method].get_focalloss(
+                    output_dict, target, spg_thresholds=self.args.spg_thresholds)
+
         else:
-            loss = floss1(logits, target)
+            loss = self.loss(logits, target)
 
         return logits, loss
 

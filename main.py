@@ -66,6 +66,36 @@ class FocalLoss(nn.Module):
 
 floss1 = FocalLoss(alpha=0.25, gamma=2)
 
+class CEFL(nn.Module):
+    def __init__(self, gamma=1):
+        super(CEFL, self).__init__()
+        self.gamma = gamma
+
+    def get_prob(self, input, target):
+        prob = F.softmax(input, dim=-1)
+        prob = prob[range(target.shape[0]), target]
+        return prob
+
+    def get_attention(self, input, target):
+        prob = F.softmax(input, dim=-1)
+        prob = prob[range(target.shape[0]), target]
+        prob = 1 - prob
+        prob = prob ** self.gamma
+        return prob
+
+    def get_celoss(self, input, target):
+        ce_loss = F.log_softmax(input, dim=1)
+        ce_loss = -ce_loss[range(target.shape[0]), target]
+        return ce_loss
+
+    def forward(self, input, target):
+        attn = self.get_attention(input, target)
+        ce_loss = self.get_celoss(input, target)
+        prob = get_prob(input, target)
+        loss = (1-prob)*ce_loss + prob*attn*ce_loss
+        return loss.mean()
+
+cefl = CEFL(gamma=1)
 
 class PerformanceMeter(object):
     def __init__(self, split, higher_is_better=True):
@@ -122,6 +152,8 @@ class Trainer(object):
             self.loss = nn.CrossEntropyLoss().cuda()
         if(self.args.loss == "focalloss"):
             self.loss = floss1
+        if(self.args.loss == "cefl"):
+            self.loss = cefl
 
 
     def _set_performance_meters(self):

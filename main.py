@@ -77,8 +77,7 @@ class CEFL(nn.Module):
         return prob
 
     def get_attention(self, input, target):
-        prob = F.softmax(input, dim=-1)
-        prob = prob[range(target.shape[0]), target]
+        prob = self.get_prob(input, target)
         prob = 1 - prob
         prob = prob ** self.gamma
         return prob
@@ -91,7 +90,7 @@ class CEFL(nn.Module):
     def forward(self, input, target):
         attn = self.get_attention(input, target)
         ce_loss = self.get_celoss(input, target)
-        prob = get_prob(input, target)
+        prob = self.get_prob(input, target)
         loss = (1-prob)*ce_loss + prob*attn*ce_loss
         return loss.mean()
 

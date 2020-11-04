@@ -9,6 +9,31 @@ from .util import get_attention
 
 __all__ = ['AcolBase']
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=0):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def get_attention(self, input, target):
+        prob = F.softmax(input, dim=-1)
+        prob = prob[range(target.shape[0]), target]
+        prob = 1 - prob
+        prob = prob ** self.gamma
+        return prob
+
+    def get_celoss(self, input, target):
+        ce_loss = F.log_softmax(input, dim=1)
+        ce_loss = -ce_loss[range(target.shape[0]), target]
+        return ce_loss
+
+    def forward(self, input, target):
+        attn = self.get_attention(input, target)
+        ce_loss = self.get_celoss(input, target)
+        loss = self.alpha * ce_loss * attn
+        return loss.mean()
+
+floss1 = FocalLoss(alpha=0.25, gamma=2)
 
 class AcolBase(nn.Module):
     def _acol_logits(self, feature, labels, drop_threshold):
@@ -42,3 +67,7 @@ def _erase_attention(feature, attention, drop_threshold):
 def get_loss(output_dict, gt_labels, **kwargs):
     return nn.CrossEntropyLoss()(output_dict['logits'], gt_labels.long()) + \
            nn.CrossEntropyLoss()(output_dict['logit_b'], gt_labels.long())
+
+def get_focalloss(output_dict, gt_labels, **kwargs):
+    return floss1(output_dict['logits'], gt_labels.long()) + \
+           floss1(output_dict['logit_b'], gt_labels.long())

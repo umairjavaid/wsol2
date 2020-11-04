@@ -4,6 +4,7 @@ Original repository: https://github.com/xiaomengyc/ACoL
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .util import get_attention
 

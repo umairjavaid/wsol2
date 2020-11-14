@@ -2954,8 +2954,8 @@ class myModel46(nn.Module):
         self.conv7 = nn.Conv2d(1024, num_classes, kernel_size=1)
         self.conv8 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
         self.conv9 = nn.Conv2d(1024, num_classes, kernel_size=1)
-        #self.conv12 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
-        #self.conv13 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.conv10 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
+        self.conv11 = nn.Conv2d(1024, num_classes, kernel_size=1)
         self.mymod2 = MyModel2()
         self.relu = nn.ReLU(inplace=False)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
@@ -2977,11 +2977,19 @@ class myModel46(nn.Module):
         x2 = self.conv9(x2)
         x2 = self.relu(x2)
         
+        x3 = self.features(x)
+        x3 = self.conv8(x3)
+        x3 = self.relu(x3)
+        x3 = self.conv9(x3)
+        x3 = self.relu(x3)
+        
         x = torch.max(x1 ,x2)
+        x = torch.max(x ,x3)
               
         if return_cam:
             x = x1.detach().clone()
             x = x + x2.detach().clone()
+            x = x + x3.detach().clone()
             x = normalize_tensor(x.detach().clone())
             x = x[range(batch_size), labels]
             return x

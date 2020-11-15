@@ -726,6 +726,7 @@ def inception_v3(architecture_type, pretrained=False, pretrained_path=None,
              'acol': InceptionAcol,
              'spg': InceptionSpg,
              'adl': InceptionAdl,
+             'mymodel46':InceptionMyModel46,
              'mymodel47':InceptionMyModel47}[architecture_type](**kwargs)
     if pretrained:
         model = load_pretrained_model(model, pretrained_path)

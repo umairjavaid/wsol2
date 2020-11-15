@@ -489,6 +489,114 @@ class InceptionAdl(nn.Module):
         return {'logits': logits}
 
 
+class InceptionMyModel46(nn.Module):
+    def __init__(self, num_classes=1000, large_feature_map=False, **kwargs):
+        super(InceptionMyModel46, self).__init__()
+
+        self.large_feature_map = large_feature_map
+
+        self.Conv2d_1a_3x3 = BasicConv2d(3, 32, 3, stride=2, padding=1)
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, 3)
+        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, 3, padding=1)
+        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, 1)
+        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, 3)
+
+        self.Mixed_5b = InceptionA(192, pool_features=32)
+        self.Mixed_5c = InceptionA(256, pool_features=64)
+        self.Mixed_5d = InceptionA(288, pool_features=64)
+
+        self.Mixed_6a = InceptionB(288, kernel_size=3, stride=1, padding=1)
+        self.Mixed_6b = InceptionC(768, channels_7x7=128)
+        self.Mixed_6c = InceptionC(768, channels_7x7=160)
+        self.Mixed_6d = InceptionC(768, channels_7x7=160)
+        self.Mixed_6e = InceptionC(768, channels_7x7=192)
+
+        self.conv6 = nn.Conv2d(768,  1024, kernel_size=3, padding=1) 
+        self.conv7 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.conv8 = nn.Conv2d(768,  1024, kernel_size=3, padding=1) 
+        self.conv9 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.conv10 = nn.Conv2d(768,  1024, kernel_size=3, padding=1) 
+        self.conv11 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        #self.conv12 = nn.Conv2d(768,  1024, kernel_size=3, padding=1) 
+        #self.conv13 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        #self.conv12 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
+        #self.conv13 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.mymod2 = MyModel2()
+        self.relu = nn.ReLU(inplace=False)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+
+        initialize_weights(self.modules(), init_mode='xavier')
+
+    def features(self, x):
+        x = self.Conv2d_1a_3x3(x)
+        x = self.Conv2d_2a_3x3(x)
+        x = self.Conv2d_2b_3x3(x)
+        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1, ceil_mode=True)
+        x = self.Conv2d_3b_1x1(x)
+        x = self.Conv2d_4a_3x3(x)
+        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1, ceil_mode=True)
+
+        x = self.Mixed_5b(x)
+        x = self.Mixed_5c(x)
+        x = self.Mixed_5d(x)
+        x = self.mymod2(x)
+        if not self.large_feature_map:
+            x = F.max_pool2d(x, kernel_size=3, stride=2, ceil_mode=True)
+
+        x = self.Mixed_6a(x)
+        x = self.Mixed_6b(x)
+        x = self.Mixed_6c(x)
+        x = self.Mixed_6d(x)
+        x = self.Mixed_6e(x)
+        x = self.mymod2(x)
+        return x
+
+    def forward(self, x, labels=None, return_cam=False):
+        batch_size = x.shape[0]
+        x1 = self.features(x)
+        x1 = self.conv6(x1)
+        x1 = self.relu(x1)
+        x1 = self.mymod2(x1)
+        x1 = self.conv7(x1)
+        x1 = self.relu(x1)
+        
+        x2 = self.features(x)
+        x2 = self.conv8(x2)
+        x2 = self.relu(x2)
+        x2 = self.conv9(x2)
+        x2 = self.relu(x2)
+
+        x3 = self.features(x)
+        x3 = self.conv10(x3)
+        x3 = self.relu(x3)
+        x3 = self.conv11(x3)
+        x3 = self.relu(x3)
+
+        #x4 = self.features(x)
+        #x4 = self.conv12(x4)
+        #x4 = self.relu(x4)
+        #x4 = self.conv13(x4)
+        #x4 = self.relu(x4)
+        
+        x = torch.max(x1 ,x2)
+        x = torch.max(x ,x3)
+        #x = torch.max(x,x4)
+              
+        if return_cam:
+            x = x1.detach().clone()
+            x = x + x2.detach().clone()
+            x = x + x3.detach().clone()
+            #x = x + x4.detach().clone()
+            x = normalize_tensor(x.detach().clone())
+            x = x[range(batch_size), labels]
+            return x
+        
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        return {'logits': x}
+
+
+    
 class InceptionMyModel47(nn.Module):
     def __init__(self, num_classes=1000, large_feature_map=False, **kwargs):
         super(InceptionMyModel47, self).__init__()

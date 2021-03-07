@@ -240,7 +240,7 @@ class Trainer(object):
         output_dict = self.model(images, target)
         logits = output_dict['logits']
 
-        if self.args.wsol_method in ('acol', 'spg','mymodel45'):
+        if self.args.wsol_method in ('acol', 'spg','mymodel45','mymodel51'):
             if(self.args.loss == "crossentropyloss"):
                 loss = wsol.method.__dict__[self.args.wsol_method].get_loss(
                     output_dict, target, spg_thresholds=self.args.spg_thresholds)

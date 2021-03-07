@@ -44,4 +44,4 @@ class AttnLoss(nn.Module):
 aloss1 = AttnLoss(alpha=0.25)
 
 def get_focalloss(output_dict, gt_labels, **kwargs):
-    floss1(output_dict['logits'], gt_labels.long()) + aloss1(output_dict['attn'], gt_labels.long())
+    return floss1(output_dict['logits'], gt_labels.long()) + aloss1(output_dict['attn'], gt_labels.long())

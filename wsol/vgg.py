@@ -2985,7 +2985,8 @@ class myModel46(nn.Module):
         
         x = torch.max(x1 ,x2)
         x = torch.max(x ,x3)
-              
+         
+        
         if return_cam:
             x = x1.detach().clone()
             x = x + x2.detach().clone()
@@ -2994,9 +2995,12 @@ class myModel46(nn.Module):
             x = x[range(batch_size), labels]
             return x
         
+        attn = torch.sigmoid(x)
+        attn = self.avgpool(x)
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        return {'logits': x}
+        attn = attn.view(attn.size(0), -1)
+        return {'logits': x, 'attn': attn}
 
 class myModel47(nn.Module):
     def __init__(self, features, num_classes=1000, **kwargs):

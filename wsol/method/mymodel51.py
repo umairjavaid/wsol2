@@ -41,5 +41,7 @@ class AttnLoss(nn.Module):
         loss = loss[range(target.shape[0]), target]
         return loss.mean()
 
+aloss1 = AttnLoss(alpha=0.25)
+
 def get_loss(output_dict, gt_labels, **kwargs):
-    floss1(output_dict['logits'], gt_labels.long()) + AttnLoss(output_dict['attn'], gt_labels.long())
+    floss1(output_dict['logits'], gt_labels.long()) + aloss1(output_dict['attn'], gt_labels.long())

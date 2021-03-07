@@ -14,6 +14,7 @@ from .method import spg
 from .method import mymodel
 from .method import mymodel2
 from .method import mymodel45
+from .method import mymodel51
 from .method import MyModel2
 from .method.util import normalize_tensor
 from .util import remove_layer

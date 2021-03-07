@@ -3264,7 +3264,64 @@ class myModel50(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         return {'logits': x}        
+
+class myModel51(nn.Module):
+    def __init__(self, features, num_classes=1000, **kwargs):
+        super(myModel51, self).__init__()
+        self.features = features
+        self.conv6 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
+        self.conv7 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.conv8 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
+        self.conv9 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.conv10 = nn.Conv2d(512,  1024, kernel_size=3, padding=1) 
+        self.conv11 = nn.Conv2d(1024, num_classes, kernel_size=1)
+        self.mymod2 = MyModel2()
+        self.relu = nn.ReLU(inplace=False)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        #self.fc = nn.Linear(1024, num_classes)
+        initialize_weights(self.modules(), init_mode='he')
+
+    def forward(self, x, labels=None, return_cam=False):
+        batch_size = x.shape[0]
+        x1 = self.features(x)
+        x1 = self.conv6(x1)
+        x1 = self.relu(x1)
+        x1 = self.mymod2(x1)
+        x1 = self.conv7(x1)
+        x1 = self.relu(x1)
+        
+        x2 = self.features(x)
+        x2 = self.conv8(x2)
+        x2 = self.relu(x2)
+        x2 = self.conv9(x2)
+        x2 = self.relu(x2)
+        
+        x3 = self.features(x)
+        x3 = self.conv8(x3)
+        x3 = self.relu(x3)
+        x3 = self.conv9(x3)
+        x3 = self.relu(x3)
+        
+        x = torch.max(x1 ,x2)
+        x = torch.max(x ,x3)
+         
+        
+        if return_cam:
+            x = x1.detach().clone()
+            x = x + x2.detach().clone()
+            x = x + x3.detach().clone()
+            x = normalize_tensor(x.detach().clone())
+            x = x[range(batch_size), labels]
+            return x
+        
+        attn = torch.sigmoid(x)
+        attn = self.avgpool(attn)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        attn = attn.view(attn.size(0), -1)
+        return {'logits': x, 'attn': attn}
     
+
 def mymodel3bweightassign(dict_,dict2):
   dict_['features.0.weight'] = dict2['features.0.weight']
   dict_['features.0.bias'] = dict2['features.0.bias']
@@ -3474,11 +3531,13 @@ def vgg16(architecture_type, pretrained=False, pretrained_path=None,
              'mymodel47': myModel47,
              'mymodel48': myModel48,
              'mymodel49': myModel49,
-             'mymodel50': myModel50}[architecture_type](layers, **kwargs)
+             'mymodel50': myModel50,
+             'mymodel51': myModel51,
+            }[architecture_type](layers, **kwargs)
     if pretrained:
         model = load_pretrained_model(model, architecture_type,
                                       path=pretrained_path)
-        if(architecture_type in ('mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel34','mymodel35','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50')):
+        if(architecture_type in ('mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel34','mymodel35','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50','mymodel51')):
           set_parameter_requires_grad2(model)
         if(architecture_type in ('mymodel36','mymodel37','mymodel38')):
            set_parameter_requires_grad(model)

@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.model_zoo import load_url
+from torch.autograd import Function, Variable
 
 from .method import AcolBase
 from .method import ADL
@@ -301,6 +302,12 @@ configs_dict = {
                   512, 512, 'I', 'M', 512, 512, 512, 'I'],
         '28x28': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 'I', 512,
                   512, 512, 'I', 512, 512, 512, 'I'],
+    },
+    'mymodel52': {
+        '14x14': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512,
+                  512, 'M', 512, 512, 512],
+        '28x28': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512,
+                  512, 512, 512, 512],
     }
 }
 
@@ -3327,8 +3334,102 @@ class myModel51(nn.Module):
         x = x.view(x.size(0), -1)
         attn = attn.view(attn.size(0), -1)
         return {'logits': x, 'attn': attn}
-    
 
+    #Wildpool
+class myModel52(nn.Module):
+    def __init__(self, features, num_classes=1000, **kwargs):
+        super(myModel52, self).__init__()
+        self.features = features
+        self.conv6 = nn.Conv2d(512,  num_classes*4, kernel_size=1, padding=0) 
+        self.relu = nn.ReLU(inplace=False)
+        initialize_weights(self.modules(), init_mode='he')
+        self.classwisepool = self.ClassWisePool(4)
+        self.wildcatpool = self.WildcatPool2d(1, None, 0.7)
+    class WildcatPool2dFunction(Function):
+        def __init__(self, kmax, kmin, alpha):
+            super(WildcatPool2dFunction, self).__init__()
+            self.kmax = kmax
+            self.kmin = kmin
+            self.alpha = alpha
+        def get_positive_k(self, k, n):
+            if k <= 0:
+                return 0
+            elif k < 1:
+                return round(k * n)
+            elif k > n:
+                return int(n)
+            else:
+                return int(k)
+        def forward(self, input):
+            batch_size = input.size(0)
+            num_channels = input.size(1)
+            h = input.size(2)
+            w = input.size(3)
+            n = h * w  # number of regions
+            kmax = self.get_positive_k(self.kmax, n)
+            kmin = self.get_positive_k(self.kmin, n)
+            sorted, indices = input.new(), input.new().long()
+            torch.sort(input.view(batch_size, num_channels, n), dim=2, descending=True, out=(sorted, indices))
+            self.indices_max = indices.narrow(2, 0, kmax)
+            output = sorted.narrow(2, 0, kmax).sum(2).div_(kmax)
+            if kmin > 0 and self.alpha is not 0:
+                self.indices_min = indices.narrow(2, n - kmin, kmin)
+                output.add_(sorted.narrow(2, n - kmin, kmin).sum(2).mul_(self.alpha / kmin)).div_(2)
+            self.save_for_backward(input)
+            return output.view(batch_size, num_channels)
+
+    class WildcatPool2d(nn.Module):
+        def __init__(self, kmax=1, kmin=None, alpha=1):
+            super(WildcatPool2d, self).__init__()
+            self.kmax = kmax
+            self.kmin = kmin
+            if self.kmin is None:
+                self.kmin = self.kmax
+            self.alpha = alpha
+        def forward(self, input):
+            return self.WildcatPool2dFunction(self.kmax, self.kmin, self.alpha)(input)
+        def __repr__(self):
+            return self.__class__.__name__ + ' (kmax=' + str(self.kmax) + ', kmin=' + str(self.kmin) + ', alpha=' + str(
+                self.alpha) + ')'
+
+    class ClassWisePoolFunction(Function):
+        def __init__(self, num_maps):
+            super(ClassWisePoolFunction, self).__init__()
+            self.num_maps = num_maps
+        def forward(self, input):
+            # batch dimension
+            batch_size, num_channels, h, w = input.size()
+            if num_channels % self.num_maps != 0:
+                print('Error in ClassWisePoolFunction. The number of channels has to be a multiple of the number of maps per class')
+                sys.exit(-1)
+            num_outputs = int(num_channels / self.num_maps)
+            x = input.view(batch_size, num_outputs, self.num_maps, h, w)
+            output = torch.sum(x, 2)
+            self.save_for_backward(input)
+            return output.view(batch_size, num_outputs, h, w) / self.num_maps
+
+    class ClassWisePool(nn.Module):
+        def __init__(self, num_maps):
+            super(ClassWisePool, self).__init__()
+            self.num_maps = num_maps
+        def forward(self, input):
+            return self.ClassWisePoolFunction(self.num_maps)(input)
+        def __repr__(self):
+            return self.__class__.__name__ + ' (num_maps={num_maps})'.format(num_maps=self.num_maps)
+    def forward(self, x, labels=None, return_cam=False):
+        batch_size = x.shape[0]
+        x = self.features(x)
+        x = self.conv6(x)
+        x = self.relu(x)
+        x = self.classwisepool(x)      
+        if return_cam:
+            x = x.clone()
+            x = normalize_tensor(x.detach().clone())
+            x = x[range(batch_size), labels]
+            return x
+        x = self.wildcatpool(x)
+        return {'logits': x}
+  
 def mymodel3bweightassign(dict_,dict2):
   dict_['features.0.weight'] = dict2['features.0.weight']
   dict_['features.0.bias'] = dict2['features.0.bias']
@@ -3540,11 +3641,12 @@ def vgg16(architecture_type, pretrained=False, pretrained_path=None,
              'mymodel49': myModel49,
              'mymodel50': myModel50,
              'mymodel51': myModel51,
+             'mymodel52': myModel52,
             }[architecture_type](layers, **kwargs)
     if pretrained:
         model = load_pretrained_model(model, architecture_type,
                                       path=pretrained_path)
-        if(architecture_type in ('mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel34','mymodel35','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50','mymodel51')):
+        if(architecture_type in ('mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel34','mymodel35','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50','mymodel51','mymodel52')):
           set_parameter_requires_grad2(model)
         if(architecture_type in ('mymodel36','mymodel37','mymodel38')):
            set_parameter_requires_grad(model)

@@ -31,7 +31,7 @@ from util import Logger
 
 _DATASET_NAMES = ('CUB', 'ILSVRC', 'OpenImages')
 _ARCHITECTURE_NAMES = ('vgg16', 'resnet50', 'inception_v3')
-_METHOD_NAMES = ('cam', 'adl', 'acol', 'spg', 'has', 'cutmix','mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel11','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel33','mymodel34','mymodel35','mymodel36','mymodel37','mymodel38','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50','mymodel51')
+_METHOD_NAMES = ('cam', 'adl', 'acol', 'spg', 'has', 'cutmix','mymodel','mymodel2','mymodel3','mymodel4','mymodel5','mymodel6','mymodel7','mymodel8','mymodel9','mymodel10','mymodel11','mymodel15','mymodel16','mymodel17','mymodel18','mymodel19','mymodel20','mymodel21','mymodel22','mymodel23','mymodel24','mymodel25','mymodel26','mymodel27','mymodel28','mymodel29','mymodel30','mymodel31','mymodel32','mymodel33','mymodel34','mymodel35','mymodel36','mymodel37','mymodel38','mymodel39','mymodel40','mymodel41','mymodel42','mymodel43','mymodel44','mymodel45','mymodel46','mymodel47','mymodel48','mymodel49','mymodel50','mymodel51','mymodel52')
 _SPLITS = ('train', 'val', 'test')
 
 

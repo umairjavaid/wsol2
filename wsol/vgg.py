@@ -3347,7 +3347,7 @@ class myModel52(nn.Module):
         self.wildcatpool = self.WildcatPool2d(1, None, 0.7)
     class WildcatPool2dFunction(Function):
         def __init__(self, kmax, kmin, alpha):
-            super(WildcatPool2dFunction, self).__init__()
+            super(myModel52.WildcatPool2dFunction, self).__init__()
             self.kmax = kmax
             self.kmin = kmin
             self.alpha = alpha
@@ -3380,7 +3380,7 @@ class myModel52(nn.Module):
 
     class WildcatPool2d(nn.Module):
         def __init__(self, kmax=1, kmin=None, alpha=1):
-            super(WildcatPool2d, self).__init__()
+            super(myModel52.WildcatPool2d, self).__init__()
             self.kmax = kmax
             self.kmin = kmin
             if self.kmin is None:
@@ -3394,7 +3394,7 @@ class myModel52(nn.Module):
 
     class ClassWisePoolFunction(Function):
         def __init__(self, num_maps):
-            super(ClassWisePoolFunction, self).__init__()
+            super(myModel52.ClassWisePoolFunction, self).__init__()
             self.num_maps = num_maps
         def forward(self, input):
             # batch dimension
@@ -3410,7 +3410,7 @@ class myModel52(nn.Module):
 
     class ClassWisePool(nn.Module):
         def __init__(self, num_maps):
-            super(ClassWisePool, self).__init__()
+            super(myModel52.ClassWisePool, self).__init__()
             self.num_maps = num_maps
         def forward(self, input):
             return self.ClassWisePoolFunction(self.num_maps)(input)
